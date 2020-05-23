@@ -1,10 +1,12 @@
 #pragma once
+#include <memory>
+#include <vector>
+
 #include "Adafruit_NeoPixel.h"
 #include "animator.hpp"
 #include "digit_manager.hpp"
 #include "rtc_hal.hpp"
 #include "settings.hpp"
-#include <memory>
 
 enum ClockState_e
 {
@@ -66,6 +68,7 @@ class Clock
         m_millisSinceDisplayValueEntered = millis();
         UseAnimation(ANIM_NONE);
 
+        /*xxx
         for (auto &num : m_digitMgr.numbers)
         {
             num = Digit::INVALID;
@@ -77,38 +80,38 @@ class Clock
             m_digitMgr.numbers[digitNum--] = value % 10;
             value /= 10;
         } while (value && digitNum >= 0);
+        */
 
-        m_animator->Go();
+        m_animator->Run();
     }
 
     void UpdateDigitsFromRTC()
     {
+        std::vector<uint8_t> clockDigitValues;
         if (Settings::Get(SETTING_24_HOUR_MODE) == 1)
         {
-            m_digitMgr.numbers[0] = rtc_hal_hour() / 10;
-            m_digitMgr.numbers[1] = rtc_hal_hour() % 10;
+            clockDigitValues.push_back(rtc_hal_hour() / 10);
+            clockDigitValues.push_back(rtc_hal_hour() % 10);
         }
         else
         {
-            m_digitMgr.numbers[0] = rtc_hal_hourFormat12() / 10;
-            m_digitMgr.numbers[1] = rtc_hal_hourFormat12() % 10;
+            clockDigitValues.push_back(rtc_hal_hourFormat12() / 10);
+            clockDigitValues.push_back(rtc_hal_hourFormat12() % 10);
 
-            if (m_digitMgr.numbers[0] == 0)
+            if (clockDigitValues[0] == 0)
             {
                 // disable leading 0 for 12 hour mode
-                m_digitMgr.numbers[0] = Digit::INVALID;
+                clockDigitValues[0] = Digit::INVALID;
             }
         }
 
-        m_digitMgr.numbers[2] = rtc_hal_minute() / 10;
-        m_digitMgr.numbers[3] = rtc_hal_minute() % 10;
+        clockDigitValues.push_back(rtc_hal_minute() / 10);
+        clockDigitValues.push_back(rtc_hal_minute() % 10);
 
-        m_digitMgr.numbers[4] = rtc_hal_second() / 10;
-        m_digitMgr.numbers[5] = rtc_hal_second() % 10;
+        clockDigitValues.push_back(rtc_hal_second() / 10);
+        clockDigitValues.push_back(rtc_hal_second() % 10);
 
-        m_animator->Go();
-
-        m_digitMgr.Draw();
+        m_animator->UpdateClockDigitValues(clockDigitValues);
 
         BlinkDigitSeparators();
     }
@@ -151,10 +154,8 @@ class Clock
         {
             UpdateDigitsFromRTC();
         }
-        else
-        {
-            m_digitMgr.Draw();
-        }
+
+        m_animator->Run();
 
         m_leds.show();
     }

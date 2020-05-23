@@ -1,4 +1,6 @@
 #pragma once
+#include <Wire.h>
+
 #include "Adafruit_NeoPixel.h"
 
 // returns a color transitioning from r -> g -> b and back to r
@@ -42,15 +44,17 @@ class Digit
   protected:
     Adafruit_NeoPixel &leds;
     int m_first;
-    int m_color;
+
+    // m_colors[x] is the color we should draw digit x (where 0 <= x <= 9)
+    std::vector<uint8_t> m_colors{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
   public:
     Digit(Adafruit_NeoPixel &strip, const int firstLED, const int onColor)
-        : leds(strip), m_first(firstLED), m_color(onColor)
+        : leds(strip), m_first(firstLED)
     {
     }
 
-    virtual void Draw(const int num) = 0;
+    virtual void Draw() = 0;
 
     void AllOff()
     {
@@ -60,14 +64,9 @@ class Digit
         }
     }
 
-    void SetColor(const int newColor)
+    void SetValue(uint8_t value, const uint32_t newColor)
     {
-        m_color = newColor;
-    }
-
-    int GetColor()
-    {
-        return m_color;
+        m_colors[value] = newColor;
     }
 };
 
@@ -78,14 +77,20 @@ class EdgeLitDigit : public Digit
     using Digit::Digit;
 
   public:
-    virtual void Draw(const int num)
+    virtual void Draw()
     {
+        //leds.setPixelColor(m_first + 2, 0xffffff);
+        //return;
+        //char s[100];
+        //sprintf(s, "drawing %i\n", num);
+        //Serial.print(s);
+
         AllOff();
-        if (num >= 0 && num <= 9)
+        for (uint8_t num = 0; num < 10; num++)
         {
             const int row = 10 - num;
-            leds.setPixelColor(m_first + (row * 2) - 2, m_color);
-            leds.setPixelColor(m_first + (row * 2) - 1, m_color);
+            leds.setPixelColor(m_first + (row * 2) - 2, m_colors[num]);
+            leds.setPixelColor(m_first + (row * 2) - 1, m_colors[num]);
         }
     }
 };
@@ -97,14 +102,15 @@ class DisplayDigit : public Digit
     using Digit::Digit;
 
   public:
-    virtual void Draw(const int num)
+    virtual void Draw()
     {
+        auto num = 1; //xxx hack to compile
         if (num >= 0 && num <= 9)
         {
             const uint8_t *data = NUMBERS + (num * LEDS_PER_DIGIT);
             for (int i = 0; i < LEDS_PER_DIGIT; ++i)
             {
-                const int col = (data[i] == 0 ? OFF_COLOR : m_color);
+                const int col = (data[i] == 0 ? OFF_COLOR : m_colors[num]);
                 leds.setPixelColor(m_first + i, col);
             }
         }

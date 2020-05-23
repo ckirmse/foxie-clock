@@ -1,7 +1,10 @@
 #pragma once
+#include <memory>
+
+#include <Wire.h>
+
 #include "digit_manager.hpp"
 #include "settings.hpp"
-#include <memory>
 
 enum AnimationType_e
 {
@@ -9,6 +12,7 @@ enum AnimationType_e
     ANIM_GLOW,
     ANIM_CYCLE_COLORS,
     ANIM_CYCLE_FLOW_LEFT,
+    ANIM_CYCLE_COLORS_SMOOTH,
 
     // Add new types above here
     ANIM_TOTAL,
@@ -18,6 +22,7 @@ enum AnimationType_e
 class Animator
 {
   protected:
+    std::vector<uint8_t> m_clockDigitValues{0,0,0,0,0,0};
     DigitManager &m_digitMgr;
 
   public:
@@ -25,13 +30,27 @@ class Animator
     {
     }
 
-    virtual void Go()
+    virtual void UpdateClockDigitValues(const std::vector<uint8_t> clockDigitValues)
     {
+        for (auto i = 0; i < clockDigitValues.size(); i++)
+        {
+            m_clockDigitValues[i] = clockDigitValues[i];
+        }
+
+        char s[100];
+        sprintf(s, "given time %i %i %i %i %i %i\n", clockDigitValues[0], clockDigitValues[1], clockDigitValues[2], clockDigitValues[3], clockDigitValues[4], clockDigitValues[5]);
+        Serial.print(s);
+    }
+
+    virtual void Run()
+    {
+        Serial.print("animator run\n");
         // does nothing except update the digit colors to the current setting
         for (int i = 0; i < 6; ++i)
         {
-            m_digitMgr.SetDigitColor(i, ColorWheel(Settings::Get(SETTING_COLOR)));
+            m_digitMgr.SetExclusiveDigitValueColor(i, m_clockDigitValues[i], 0xffffff/*ColorWheel(Settings::Get(SETTING_COLOR))*/);
         }
+        m_digitMgr.Draw();
     };
 
     // Fast animations occur as often as possible (like AnimatorGlow below),
@@ -56,12 +75,12 @@ class AnimatorCycleAll : public Animator
     uint8_t m_color{0};
 
   public:
-    virtual void Go() override
+    virtual void Run() override
     {
         for (int i = 0; i < 6; ++i)
         {
             m_color += 16;
-            m_digitMgr.SetDigitColor(i, ColorWheel(m_color));
+            //m_digitMgr.SetDigitColor(i, ColorWheel(m_color));
         }
     }
 };
@@ -76,12 +95,12 @@ class AnimatorGlow : public Animator
     int m_millis{0};
 
   public:
-    virtual void Go() override
+    virtual void Run() override
     {
         int scaledColor = ScaleBrightness(ColorWheel(Settings::Get(SETTING_COLOR)), m_brightness);
         for (int i = 0; i < 6; ++i)
         {
-            m_digitMgr.SetDigitColor(i, scaledColor);
+            //m_digitMgr.SetDigitColor(i, scaledColor);
         }
 
         if ((int)millis() - m_millis >= 25)
@@ -117,21 +136,21 @@ class AnimatorCycleFlowLeft : public Animator
   public:
     AnimatorCycleFlowLeft(DigitManager &digitMgr) : Animator(digitMgr)
     {
-        prevNumbers = digitMgr.numbers;
-        Animator::Go();
+        //prevNumbers = digitMgr.numbers;
+        Animator::Run();
     }
 
-    virtual void Go() override
+    virtual void Run() override
     {
         for (int i = 0; i < 6; ++i)
         {
-            if (prevNumbers[i] != m_digitMgr.numbers[i])
+            //if (prevNumbers[i] != m_digitMgr.numbers[i])
             {
                 CycleDigitColor(i);
             }
         }
 
-        prevNumbers = m_digitMgr.numbers;
+        //prevNumbers = m_digitMgr.numbers;
     }
 
     virtual void ColorButtonPressed() override
@@ -155,10 +174,34 @@ class AnimatorCycleFlowLeft : public Animator
         else
         {
             // get the color of the digit to the right
-            newColor = m_digitMgr.GetDigitColor(digitNum + 1);
+            //newColor = m_digitMgr.GetDigitColor(digitNum + 1);
         }
-        m_digitMgr.SetDigitColor(digitNum, newColor);
+        //m_digitMgr.SetDigitColor(digitNum, newColor);
     }
+};
+
+class AnimatorCycleAllSmooth : public Animator
+{
+    using Animator::Animator;
+
+  private:
+    uint8_t m_color{0};
+
+  public:
+    virtual void Run() override
+    {
+        for (int i = 0; i < 6; ++i)
+        {
+            m_color += 16;
+            //m_digitMgr.SetDigitColor(i, ColorWheel(m_color));
+        }
+    }
+
+    virtual bool IsFast()
+    {
+        return true;
+    }
+
 };
 
 class AnimatorSetTime : public Animator
@@ -166,17 +209,18 @@ class AnimatorSetTime : public Animator
     using Animator::Animator;
 
   public:
-    virtual void Go() override
+    virtual void Run() override
     {
         for (int i = 0; i < 6; ++i)
         {
-            m_digitMgr.SetDigitColor(i, ColorWheel((uint8_t)(Settings::Get(SETTING_COLOR) + 128)));
+            //m_digitMgr.SetDigitColor(i, ColorWheel((uint8_t)(Settings::Get(SETTING_COLOR) + 128)));
         }
     }
 };
 
 static inline std::shared_ptr<Animator> AnimatorFactory(DigitManager &digitMgr, const AnimationType_e type)
 {
+/*
     switch (type)
     {
     case ANIM_GLOW:
@@ -185,9 +229,11 @@ static inline std::shared_ptr<Animator> AnimatorFactory(DigitManager &digitMgr, 
         return std::make_shared<AnimatorCycleAll>(digitMgr);
     case ANIM_CYCLE_FLOW_LEFT:
         return std::make_shared<AnimatorCycleFlowLeft>(digitMgr);
+    case ANIM_CYCLE_COLORS_SMOOTH:
+        return std::make_shared<AnimatorCycleAllSmooth>(digitMgr);
     case ANIM_SET_TIME:
         return std::make_shared<AnimatorSetTime>(digitMgr);
     }
-
+*/
     return std::make_shared<Animator>(digitMgr);
 }

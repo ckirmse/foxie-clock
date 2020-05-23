@@ -1,5 +1,6 @@
-#include <Wire.h>
 #include <vector>
+
+#include <Wire.h>
 
 #include "Adafruit_NeoPixel.h"
 #include "ble_funcs.hpp"
@@ -31,6 +32,10 @@ void setup()
 {
     Serial.begin(115200);
     Wire.begin();
+
+    char s[100];
+    sprintf(s, "starting up\n");
+    Serial.print(s);
 
     Settings settings;
     if (false) // change to 'true' to allow the below code to change the settings on boot

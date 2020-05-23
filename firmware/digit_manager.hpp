@@ -1,8 +1,11 @@
 #pragma once
-#include "digit.hpp"
-#include "settings.hpp"
 #include <memory>
 #include <vector>
+
+#include <Wire.h>
+
+#include "digit.hpp"
+#include "settings.hpp"
 
 class DigitManager
 {
@@ -30,10 +33,6 @@ class DigitManager
     std::vector<std::shared_ptr<Digit>> m_digits;
 
   public:
-    // these store the value of each physical number display on the PCB
-    // and can be updated directly for ease of use
-    std::vector<uint8_t> numbers{0, 0, 0, 0, 0, 0};
-
     DigitManager(Adafruit_NeoPixel &leds) : m_leds(leds)
     {
         CreateDigitDisplay();
@@ -51,28 +50,49 @@ class DigitManager
         m_digits.push_back(CreateDigit(DIGIT_6_LED));
     }
 
-    void Draw()
+    void SetDigitValueColor(const size_t digitNum, const uint8_t value, const uint32_t color)
     {
-        for (size_t i = 0; i < NUM_DIGITS; ++i)
+        char s[100];
+        sprintf(s, "digit %i setting value %i to color %u\n", digitNum, value, color);
+        Serial.print(s);
+        m_digits[digitNum]->SetValue(value, color);
+    }
+
+    void SetExclusiveDigitValueColor(const size_t digitNum, const uint8_t value, const uint32_t color)
+    {
+        char s[100];
+        sprintf(s, "exclusive digit value color %i %i %u\n", digitNum, value, color);
+        Serial.print(s);
+
+        for (uint8_t i = 0; i < 10; i++)
         {
-            m_digits[i]->Draw(numbers[i]);
+            if (i == value)
+            {
+                this->SetDigitValueColor(digitNum, i, color);
+            }
+            else
+            {
+                this->SetDigitValueColor(digitNum, i, 0);
+            }
         }
     }
 
-    void SetDigitColor(const size_t digitNum, const uint32_t color)
+    void Draw()
     {
-        m_digits[digitNum]->SetColor(color);
-    }
+        char s[100];
+        sprintf(s, "drawing\n");
+        Serial.print(s);
 
-    int GetDigitColor(const size_t digitNum)
-    {
-        return m_digits[digitNum]->GetColor();
+        for (uint8_t i = 0; i < 6; i++)
+        {
+            m_digits[i]->Draw();
+        }
     }
 
   private:
     std::shared_ptr<Digit> CreateDigit(const LEDNumbers_e firstLED)
     {
-        if (Settings::Get(SETTING_DIGIT_TYPE) == 1)
+        if (1 || Settings::Get(SETTING_DIGIT_TYPE) == 1)
         {
             return std::make_shared<EdgeLitDigit>(m_leds, firstLED, Settings::Get(SETTING_COLOR));
         }
